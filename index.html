@@ -3373,8 +3373,8 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
               mb.set(1, PDFLib.PDFNumber.of(-MARGIN)); // y0 = -MARGIN
               page.drawRectangle({ x: 0, y: -MARGIN, width: W, height: MARGIN, color: rgb(0.97, 0.97, 0.95) });
               page.drawLine({ start: { x: 0, y: 0 }, end: { x: W, y: 0 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
-              // Text im Streifen: cy in [-MARGIN, 0], cx stapelt in +x
-              cx = PAD + FS; cy = -PAD - FS; cxStep = LH; cyStep = 0;
+              // Text weiter links im Streifen: cy = -(MARGIN - PAD - FS) → nahe am äusseren Rand
+              cx = PAD + FS; cy = -(MARGIN - PAD - FS); cxStep = LH; cyStep = 0;
             } else if (rot === 180) {
               page.setWidth(W + MARGIN);
               page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
@@ -3391,7 +3391,11 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
               const n = numMap.get(c);
               const { x: px, y: py } = visToPdf(c.x * vW, c.y * vH, ri);
               page.drawCircle({ x: px, y: py, size: 8, color: RED });
-              page.drawText(String(n), { x: px - (n > 9 ? 4.6 : 2.4), y: py - 3, size: 8, font, color: rgb(1, 1, 1) });
+              // Zahl im Pin 45° gedreht damit lesbar auf gedrehten Seiten
+              const pinRot = isSwapped ? degrees(45) : degrees(0);
+              const pinOffX = isSwapped ? -2 : (n > 9 ? -4.6 : -2.4);
+              const pinOffY = isSwapped ? -4 : -3;
+              page.drawText(String(n), { x: px + pinOffX, y: py + pinOffY, size: 8, font, color: rgb(1, 1, 1), rotate: pinRot });
               const lines = wrapText(`${n}. ${c.text || ''}`, font, FS, MARGIN - 2 * PAD);
               for (const ln of lines) {
                 page.drawText(ln, { x: cx, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1), rotate: txtRot });

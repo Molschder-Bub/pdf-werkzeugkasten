@@ -3378,28 +3378,20 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
             const ri = getPageRotInfo(page);
             const { W, H, rot, vW, vH } = ri;
             const isSwapped = rot === 90 || rot === 270;
-            // Streifen immer am visuellen rechten Rand
-            // rot=0/180: raw rechts erweitern (setWidth)
-            // rot=90/270: MediaBox nach unten erweitern (raw -y = visuell rechts)
-            const txtRot = degrees(rot); // Gegenrotation damit Text waagrecht erscheint
+            // Streifen immer via setWidth am raw-rechten Rand (keine MediaBox-Manipulation
+            // → nachfolgende Operationen wie Signatur bleiben ungestört)
+            const txtRot = degrees(rot);
+            page.setWidth(W + MARGIN);
+            page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
+            page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
             let cx, cy, cxStep, cyStep;
             if (isSwapped) {
-              // Visuell rechts = raw -y → MediaBox von y=0 auf y=-MARGIN erweitern
-              const mb = page.node.get(PDFLib.PDFName.of('MediaBox'));
-              mb.set(1, PDFLib.PDFNumber.of(-MARGIN)); // y0 = -MARGIN
-              page.drawRectangle({ x: 0, y: -MARGIN, width: W, height: MARGIN, color: rgb(0.97, 0.97, 0.95) });
-              page.drawLine({ start: { x: 0, y: 0 }, end: { x: W, y: 0 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
-              // Text weiter links im Streifen: cy = -(MARGIN - PAD - FS) → nahe am äusseren Rand
-              cx = PAD + FS; cy = -(MARGIN - PAD - FS); cxStep = LH; cyStep = 0;
+              // rot=90/270: Streifen erscheint visuell unten; Text mit degrees(rot) waagrecht
+              // Zeilen stapeln in raw +x (visual down in strip), cy fix am visuell linken Rand
+              cx = W + PAD + FS; cy = PAD; cxStep = LH; cyStep = 0;
             } else if (rot === 180) {
-              page.setWidth(W + MARGIN);
-              page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
-              page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
               cx = W + MARGIN - PAD; cy = H - PAD; cxStep = 0; cyStep = -LH;
             } else {
-              page.setWidth(W + MARGIN);
-              page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
-              page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
               cx = W + PAD; cy = H - PAD - FS; cxStep = 0; cyStep = -LH;
             }
             list.sort((a, b) => a.y - b.y || a.x - b.x);

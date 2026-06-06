@@ -3360,12 +3360,24 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
           for (const [pg, list] of byPage) {
             const page = pages[pg - 1]; if (!page) continue;
             const ri = getPageRotInfo(page);
-            const { W, H, vW, vH } = ri;
-            // Margin immer rechts im raw-PDF-Raum anhängen (zuverlässig für alle Rotationen)
+            const { W, H, rot, vW, vH } = ri;
+            // Margin immer rechts im raw-PDF-Raum
             page.setWidth(W + MARGIN);
             page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
             page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
-            let cy = H - PAD - FS;
+            // Text-Rotation: Gegenrotation zur Seite, damit Text im Viewer waagrecht erscheint
+            // rot=0→0°, rot=90→270°, rot=180→180°, rot=270→90°
+            const txtRot = degrees((360 - rot) % 360);
+            // Start-Position und Zeilenrichtung je nach Seitenrotation
+            // rot=0:   Text geht in -y Richtung (roh), startet oben
+            // rot=90:  baseline=-y, Aszendenten=-x → starte rechts oben im Streifen
+            // rot=180: baseline=-x, Aszendenten=+y → starte links unten im Streifen
+            // rot=270: baseline=+y, Aszendenten=+x → starte links unten im Streifen
+            let cx, cy, cyStep;
+            if (rot === 90)       { cx = W + PAD + FS; cy = H - PAD;      cyStep = -LH; }
+            else if (rot === 180) { cx = W + MARGIN - PAD; cy = PAD + FS; cyStep =  LH; }
+            else if (rot === 270) { cx = W + PAD;      cy = PAD;          cyStep =  LH; }
+            else                  { cx = W + PAD;      cy = H - PAD - FS; cyStep = -LH; }
             list.sort((a, b) => a.y - b.y || a.x - b.x);
             for (const c of list) {
               const n = numMap.get(c);
@@ -3373,10 +3385,13 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
               const { x: px, y: py } = visToPdf(c.x * vW, c.y * vH, ri);
               page.drawCircle({ x: px, y: py, size: 8, color: RED });
               page.drawText(String(n), { x: px - (n > 9 ? 4.6 : 2.4), y: py - 3, size: 8, font, color: rgb(1, 1, 1) });
-              // Kommentartext im Margin
+              // Kommentartext im Margin – gegenrotiert damit waagrecht lesbar
               const lines = wrapText(`${n}. ${c.text || ''}`, font, FS, MARGIN - 2 * PAD);
-              for (const ln of lines) { page.drawText(ln, { x: W + PAD, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1) }); cy -= LH; }
-              cy -= 6;
+              for (const ln of lines) {
+                page.drawText(ln, { x: cx, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1), rotate: txtRot });
+                cy += cyStep;
+              }
+              cy += cyStep < 0 ? -6 : 6;
             }
           }
         }

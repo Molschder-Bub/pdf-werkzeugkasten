@@ -3390,12 +3390,20 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
             for (const c of list) {
               const n = numMap.get(c);
               const { x: px, y: py } = visToPdf(c.x * vW, c.y * vH, ri);
-              page.drawCircle({ x: px, y: py, size: 8, color: RED });
-              // Zahl waagerecht zentriert im roten Kreis
+              page.drawCircle({ x: px, y: py, size: 10, color: RED });
+              // Zahl zentriert im Kreis: Offset je nach Rotation berechnen
               const numStr = String(n);
-              const numW = font.widthOfTextAtSize(numStr, 8);
-              const numCoords = visualTextCoords(page, c.x * vW - numW / 2, vH - c.y * vH - 3, numW);
-              page.drawText(numStr, { x: numCoords.x, y: numCoords.y, size: 8, font, color: rgb(1, 1, 1), rotate: numCoords.rotate });
+              const numSz = 11;
+              const numW = font.widthOfTextAtSize(numStr, numSz);
+              const numH = numSz * 0.36; // halbe Versalhöhe = vertikaler Mittelversatz
+              let nx, ny, nrot;
+              switch (rot) {
+                case 90:  nx = px + numH;   ny = py - numW/2; nrot = degrees(90);  break;
+                case 180: nx = px + numW/2; ny = py + numH;   nrot = degrees(180); break;
+                case 270: nx = px - numH;   ny = py + numW/2; nrot = degrees(270); break;
+                default:  nx = px - numW/2; ny = py - numH;   nrot = degrees(0);   break;
+              }
+              page.drawText(numStr, { x: nx, y: ny, size: numSz, font, color: rgb(1, 1, 1), rotate: nrot });
               const lines = wrapText(`${n}. ${c.text || ''}`, font, FS, MARGIN - 2 * PAD);
               for (const ln of lines) {
                 page.drawText(ln, { x: cx, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1), rotate: txtRot });

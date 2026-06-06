@@ -3033,20 +3033,11 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
           const vy_top = s.y * ri.vH;
           const vw = s.w * ri.vW;
           const vh = vw * s.aspect;
-          // Visuell: Bild von (vx, vy_top) bis (vx+vw, vy_top+vh)
-          // → Koordinate der visuellen unteren linken Ecke des Bilds
+          // Untere-linke Ecke des Bilds im PDF-Koordinatensystem
           const { x, y } = visToPdf(vx, vy_top + vh, ri);
-          // Für rotierte Seiten: Bild muss mit Seitenrotation gezeichnet werden
-          switch (ri.rot) {
-            case 90:
-              page.drawImage(im, { x, y, width: vh, height: vw, rotate: degrees(90) }); break;
-            case 180:
-              page.drawImage(im, { x, y: y - vh, width: vw, height: vh, rotate: degrees(0) }); break;
-            case 270:
-              page.drawImage(im, { x: x - vh, y, width: vh, height: vw, rotate: degrees(0) }); break;
-            default:
-              page.drawImage(im, { x, y, width: vw, height: vh }); break;
-          }
+          // Für alle Rotationen gilt: width=vw, height=vh, rotate=degrees(rot)
+          // (visToPdf liefert den korrekten Ankerpunkt, degrees(rot) korrigiert die Orientierung)
+          page.drawImage(im, { x, y, width: vw, height: vh, rotate: degrees(ri.rot) });
         };
         const drawTxt = async (page, t) => {
           const ri = getPageRotInfo(page);

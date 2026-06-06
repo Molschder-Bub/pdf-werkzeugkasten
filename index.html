@@ -3385,7 +3385,7 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
               page.drawCircle({ x: px, y: py, size: 8, color: RED });
               page.drawText(String(n), { x: px - (n > 9 ? 4.6 : 2.4), y: py - 3, size: 8, font, color: rgb(1, 1, 1) });
               // Text im Margin
-              const lines = wrapText(\`\${n}. \${c.text || ''}\`, font, FS, MARGIN - 2 * PAD);
+              const lines = wrapText(`${n}. ${c.text || ''}`, font, FS, MARGIN - 2 * PAD);
               if (!isSwapped) {
                 for (const ln of lines) { page.drawText(ln, { x: W + PAD, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1) }); cy -= LH; }
               } else {

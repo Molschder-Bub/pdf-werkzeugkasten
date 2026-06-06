@@ -646,6 +646,103 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
       letter-spacing: 0.03em;
     }
 
+    /* ─── Annotate: Marker & Kommentare ─── */
+    .annot-seg {
+      display: flex; gap: 4px; margin-bottom: 12px;
+    }
+    .annot-seg button {
+      flex: 1; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--border);
+      background: #f9fafb; font-size: 0.82rem; font-weight: 600; color: #374151;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .annot-seg button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .annot-seg button:hover:not(.active) { background: #f3f4f6; }
+
+    .swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    .swatch {
+      width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent;
+      cursor: pointer; transition: all 0.15s; outline: none;
+    }
+    .swatch.active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--ring); }
+    .swatch:hover { transform: scale(1.15); }
+    /* Weißer Swatch braucht sichtbaren Rand */
+    .swatch[style*="rgb(255, 255, 255)"], .swatch[style*="#ffffff"] {
+      border-color: #d1d5db;
+    }
+
+    .page-nav {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; margin: 8px 0;
+    }
+    .nav-btn {
+      background: #fff; border: 1.5px solid var(--border);
+      border-radius: 8px; width: 32px; height: 32px;
+      font-size: 1.1rem; cursor: pointer; color: #374151;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) { background: var(--primary-light); border-color: var(--primary); }
+    .nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .page-ind { font-size: 0.82rem; color: var(--muted); font-weight: 600; }
+
+    .annot-stage {
+      position: relative; display: inline-block;
+      max-width: 100%; border-radius: 8px; overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1); margin: 8px 0;
+      border: 1px solid var(--border); cursor: crosshair;
+    }
+    .annot-stage canvas { display: block; max-width: 100%; height: auto; }
+    .annot-marks {
+      position: absolute; inset: 0; pointer-events: none;
+    }
+    .annot-overlay {
+      position: absolute; inset: 0;
+    }
+    .annot-overlay.mode-marker { cursor: crosshair; }
+    .annot-overlay.mode-comment { cursor: cell; }
+
+    .annot-hl {
+      position: absolute; pointer-events: none;
+      border-radius: 2px; mix-blend-mode: multiply;
+    }
+    .annot-pin {
+      position: absolute; width: 20px; height: 20px;
+      border-radius: 50% 50% 50% 0; transform: translate(-50%, -100%) rotate(-45deg);
+      background: #dc2626; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6rem; font-weight: 800;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25); pointer-events: none;
+    }
+    .annot-pin::after {
+      content: attr(data-n); transform: rotate(45deg); display: block;
+    }
+
+    .annot-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 8px 0; border-bottom: 1px solid #f3f4f6;
+    }
+    .annot-row:last-child { border-bottom: none; }
+    .annot-row .num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #dc2626; color: #fff;
+      font-size: 0.65rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 4px;
+    }
+    .annot-row .dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      flex-shrink: 0; margin-top: 6px; border: 1px solid rgba(0,0,0,0.1);
+    }
+    .annot-row .meta {
+      flex: 1; font-size: 0.82rem; color: #374151; line-height: 1.5; padding-top: 2px;
+    }
+    .annot-row textarea {
+      flex: 1; border: 1.5px solid var(--border); border-radius: 8px;
+      padding: 6px 10px; font-size: 0.82rem; font-family: inherit;
+      resize: vertical; min-height: 48px; background: #fff; color: var(--dark);
+    }
+    .annot-row textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--ring); }
+
     /* ─── Mobile ─── */
     @media (max-width: 860px) {
       body { flex-direction: column; }

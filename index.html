@@ -3394,7 +3394,7 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
               // Zahl waagerecht zentriert im roten Kreis
               const numStr = String(n);
               const numW = font.widthOfTextAtSize(numStr, 8);
-              const numCoords = visualTextCoords(page, c.x * vW - numW / 2, vH - c.y * vH + 3, numW);
+              const numCoords = visualTextCoords(page, c.x * vW - numW / 2, vH - c.y * vH - 3, numW);
               page.drawText(numStr, { x: numCoords.x, y: numCoords.y, size: 8, font, color: rgb(1, 1, 1), rotate: numCoords.rotate });
               const lines = wrapText(`${n}. ${c.text || ''}`, font, FS, MARGIN - 2 * PAD);
               for (const ln of lines) {

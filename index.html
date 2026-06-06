@@ -3392,9 +3392,10 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
               const { x: px, y: py } = visToPdf(c.x * vW, c.y * vH, ri);
               page.drawCircle({ x: px, y: py, size: 8, color: RED });
               // Zahl im Pin 45° gedreht damit lesbar auf gedrehten Seiten
+              // Bei 45° Rotation: Mittelpunkt-Offset geometrisch korrigiert
               const pinRot = isSwapped ? degrees(45) : degrees(0);
-              const pinOffX = isSwapped ? -2 : (n > 9 ? -4.6 : -2.4);
-              const pinOffY = isSwapped ? -4 : -3;
+              const pinOffX = isSwapped ? 2 : (n > 9 ? -4.6 : -2.4);
+              const pinOffY = isSwapped ? -5 : -3;
               page.drawText(String(n), { x: px + pinOffX, y: py + pinOffY, size: 8, font, color: rgb(1, 1, 1), rotate: pinRot });
               const lines = wrapText(`${n}. ${c.text || ''}`, font, FS, MARGIN - 2 * PAD);
               for (const ln of lines) {

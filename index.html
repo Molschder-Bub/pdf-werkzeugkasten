@@ -1518,6 +1518,42 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
     hilfeClose.addEventListener('click', () => hilfeModal.classList.remove('open'));
     hilfeModal.addEventListener('click', e => { if (e.target === hilfeModal) hilfeModal.classList.remove('open'); });
 
+    /* ---------- Rotations-Helfer ----------
+       PDF.js rendert Seiten bereits rotiert (dispW/dispH = visuelle Maße).
+       PDF-lib arbeitet im Rohkoordinatensystem (vor Rotation).
+       Diese Hilfsfunktionen konvertieren visuell → Roh-PDF-Koordinaten.
+    ----------------------------------------------------------- */
+    function getPageRotInfo(page) {
+      const { width: W, height: H } = page.getSize();
+      const rot = ((page.getRotation().angle || 0) + 360) % 360;
+      const swap = rot === 90 || rot === 270;
+      return { W, H, rot, vW: swap ? H : W, vH: swap ? W : H };
+    }
+
+    // Visueller Punkt (vx von links, vy von oben) → PDF-Koordinaten (px, py von unten)
+    function visToPdf(vx, vy_top, info) {
+      const { W, H, rot } = info;
+      switch (rot) {
+        case 90:  return { x: vy_top,     y: vx         };
+        case 180: return { x: W - vx,     y: vy_top     };
+        case 270: return { x: H - vy_top, y: W - vx     };
+        default:  return { x: vx,         y: H - vy_top };
+      }
+    }
+
+    // Platziere Text (linke Kante = vx, Grundlinie = vy_bottom von visuell unten, Breite = tw)
+    function visualTextCoords(page, vx, vy_bottom, tw) {
+      const info = getPageRotInfo(page);
+      const { W, H, rot, vH } = info;
+      const vy_top = vH - vy_bottom;
+      switch (rot) {
+        case 90:  return { x: W - vy_bottom, y: vx,            rotate: degrees(90)  };
+        case 180: return { x: W - vx - tw,   y: vy_bottom,     rotate: degrees(180) };
+        case 270: return { x: vy_bottom,      y: H - vx - tw,  rotate: degrees(270) };
+        default:  return { x: vx,             y: vy_bottom,    rotate: degrees(0)   };
+      }
+    }
+
     /* ---------- Recent tracking: nach jedem Download eintragen ---------- */
     const _origDownload = download;
     window.download = function(data, name, type) {
@@ -1876,12 +1912,13 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
           else if (fmt === 'nt') text = `${n} / ${start + total - 1}`;
           else if (fmt === 'sn') text = `Seite ${n}`;
           else text = `Seite ${n} von ${start + total - 1}`;
-          const { width, height } = page.getSize();
+          const { vW, vH } = getPageRotInfo(page);
           const tw = font.widthOfTextAtSize(text, size);
-          let x, y;
-          if (pos[1] === 'l') x = M; else if (pos[1] === 'r') x = width - M - tw; else x = (width - tw) / 2;
-          y = pos[0] === 't' ? height - M : M - size / 2 + 6;
-          page.drawText(text, { x, y, size, font, color: rgb(0.25, 0.25, 0.25) });
+          let vx, vy_bottom;
+          if (pos[1] === 'l') vx = M; else if (pos[1] === 'r') vx = vW - M - tw; else vx = (vW - tw) / 2;
+          vy_bottom = pos[0] === 't' ? vH - M : M;
+          const { x, y, rotate } = visualTextCoords(page, vx, vy_bottom, tw);
+          page.drawText(text, { x, y, size, font, color: rgb(0.25, 0.25, 0.25), rotate });
         });
         download(await doc.save(), state.file.name.replace(/\.pdf$/i, '') + '_nummeriert.pdf', 'application/pdf');
         return `✓ Seitenzahlen auf ${total} Seiten eingefügt.`;
@@ -2075,14 +2112,17 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
           const frac = (parseInt(optVal('wm-imgsize'), 10) || 40) / 100;
           const aspect = img.height / img.width;
           for (const page of doc.getPages()) {
-            const { width, height } = page.getSize();
-            const w = width * frac;
+            const ri = getPageRotInfo(page);
+            const w = ri.vW * frac;
             const h = w * aspect;
-            const cx = place.cx * width;
-            const cy = height - place.cy * height;
-            const x = cx - ((w / 2) * Math.cos(rad) - (h / 2) * Math.sin(rad));
-            const y = cy - ((w / 2) * Math.sin(rad) + (h / 2) * Math.cos(rad));
-            page.drawImage(img, { x, y, width: w, height: h, rotate: degrees(deg), opacity: op });
+            const vcx = place.cx * ri.vW;
+            const vcy = place.cy * ri.vH;
+            const { x: pcx, y: pcy } = visToPdf(vcx, vcy, ri);
+            const totalRot = (deg + ri.rot) % 360;
+            const totalRad = totalRot * Math.PI / 180;
+            const x = pcx - ((w / 2) * Math.cos(totalRad) - (h / 2) * Math.sin(totalRad));
+            const y = pcy - ((w / 2) * Math.sin(totalRad) + (h / 2) * Math.cos(totalRad));
+            page.drawImage(img, { x, y, width: w, height: h, rotate: degrees(totalRot), opacity: op });
           }
           download(await doc.save(), state.file.name.replace(/\.pdf$/i, '') + '_wasserzeichen.pdf', 'application/pdf');
           return '✓ Bild-Wasserzeichen eingefügt.';
@@ -2092,15 +2132,18 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
         if (!text) throw new Error('Bitte Wasserzeichen-Text angeben.');
         const font = await doc.embedFont(StandardFonts.HelveticaBold);
         const size = parseInt(optVal('wm-size'), 10) || 60;
-        const vMid = size * 0.35; // vertikale Zentrierung der Texthöhe
+        const vMid = size * 0.35;
         for (const page of doc.getPages()) {
-          const { width, height } = page.getSize();
+          const ri = getPageRotInfo(page);
           const tw = font.widthOfTextAtSize(text, size);
-          const cx = place.cx * width;
-          const cy = height - place.cy * height;
-          const x = cx - (tw / 2) * Math.cos(rad) + vMid * Math.sin(rad);
-          const y = cy - (tw / 2) * Math.sin(rad) - vMid * Math.cos(rad);
-          page.drawText(text, { x, y, size, font, color: rgb(0.5, 0.5, 0.5), opacity: op, rotate: degrees(deg) });
+          const vcx = place.cx * ri.vW;
+          const vcy = place.cy * ri.vH;
+          const { x: pcx, y: pcy } = visToPdf(vcx, vcy, ri);
+          const totalRot = (deg + ri.rot) % 360;
+          const totalRad = totalRot * Math.PI / 180;
+          const x = pcx - (tw / 2) * Math.cos(totalRad) + vMid * Math.sin(totalRad);
+          const y = pcy - (tw / 2) * Math.sin(totalRad) - vMid * Math.cos(totalRad);
+          page.drawText(text, { x, y, size, font, color: rgb(0.5, 0.5, 0.5), opacity: op, rotate: degrees(totalRot) });
         }
         download(await doc.save(), state.file.name.replace(/\.pdf$/i, '') + '_wasserzeichen.pdf', 'application/pdf');
         return '✓ Wasserzeichen eingefügt.';
@@ -2833,16 +2876,37 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
         };
         const ensureFont = async () => { if (!font) font = await doc.embedFont(StandardFonts.Helvetica); return font; };
         const drawSig = async (page, s) => {
-          const { width: Wpt, height: Hpt } = page.getSize();
+          const ri = getPageRotInfo(page);
           const im = await embedImg(s.type, s.buf);
-          const wPt = s.w * Wpt, hPt = wPt * s.aspect;
-          page.drawImage(im, { x: s.x * Wpt, y: Hpt - s.y * Hpt - hPt, width: wPt, height: hPt });
+          // s.x, s.y, s.w sind Fraktionen des visuellen Anzeigebereichs
+          const vx = s.x * ri.vW;
+          const vy_top = s.y * ri.vH;
+          const vw = s.w * ri.vW;
+          const vh = vw * s.aspect;
+          // Visuell: Bild von (vx, vy_top) bis (vx+vw, vy_top+vh)
+          // → Koordinate der visuellen unteren linken Ecke des Bilds
+          const { x, y } = visToPdf(vx, vy_top + vh, ri);
+          // Für rotierte Seiten: Bild muss mit Seitenrotation gezeichnet werden
+          switch (ri.rot) {
+            case 90:
+              page.drawImage(im, { x, y, width: vh, height: vw, rotate: degrees(90) }); break;
+            case 180:
+              page.drawImage(im, { x, y: y - vh, width: vw, height: vh, rotate: degrees(0) }); break;
+            case 270:
+              page.drawImage(im, { x: x - vh, y, width: vh, height: vw, rotate: degrees(0) }); break;
+            default:
+              page.drawImage(im, { x, y, width: vw, height: vh }); break;
+          }
         };
         const drawTxt = async (page, t) => {
-          const { width: Wpt, height: Hpt } = page.getSize();
+          const ri = getPageRotInfo(page);
           const f = await ensureFont();
           const tw = f.widthOfTextAtSize(t.str, t.size);
-          page.drawText(t.str, { x: t.cx * Wpt - tw / 2, y: (Hpt - t.cy * Hpt) - t.size * 0.35, size: t.size, font: f, color: t.white ? rgb(1, 1, 1) : rgb(0.1, 0.1, 0.1) });
+          // t.cx, t.cy sind Fraktionen des visuellen Anzeigebereichs (Mitte des Texts)
+          const vx = t.cx * ri.vW - tw / 2;
+          const vy_bottom = ri.vH - t.cy * ri.vH - t.size * 0.35;
+          const { x, y, rotate } = visualTextCoords(page, vx, vy_bottom, tw);
+          page.drawText(t.str, { x, y, size: t.size, font: f, color: t.white ? rgb(1, 1, 1) : rgb(0.1, 0.1, 0.1), rotate });
         };
 
         const parts = [];

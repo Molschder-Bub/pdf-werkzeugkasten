@@ -3365,33 +3365,41 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
             page.setWidth(W + MARGIN);
             page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
             page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
-            // Text-Rotation: Gegenrotation zur Seite, damit Text im Viewer waagrecht erscheint
-            // rot=0→0°, rot=90→270°, rot=180→180°, rot=270→90°
-            const txtRot = degrees((360 - rot) % 360);
-            // Start-Position und Zeilenrichtung je nach Seitenrotation
-            // rot=0:   Text geht in -y Richtung (roh), startet oben
-            // rot=90:  baseline=-y, Aszendenten=-x → starte rechts oben im Streifen
-            // rot=180: baseline=-x, Aszendenten=+y → starte links unten im Streifen
-            // rot=270: baseline=+y, Aszendenten=+x → starte links unten im Streifen
-            let cx, cy, cyStep;
-            if (rot === 90)       { cx = W + PAD + FS; cy = H - PAD;      cyStep = -LH; }
-            else if (rot === 180) { cx = W + MARGIN - PAD; cy = PAD + FS; cyStep =  LH; }
-            else if (rot === 270) { cx = W + PAD;      cy = PAD;          cyStep =  LH; }
-            else                  { cx = W + PAD;      cy = H - PAD - FS; cyStep = -LH; }
+            // degrees(rot) = korrekte Gegenrotation: rot=0→0°, rot=90→90°CCW, rot=180→180°, rot=270→270°CCW
+            // Für rot=90/270 fließt der Text auf dem Canvas von rechts nach links;
+            // String umkehren damit er von links nach rechts LESBAR erscheint.
+            const txtRot = degrees(rot);
+            const flipText = rot === 90 || rot === 270;
+            // Startposition und Zeilenrichtung:
+            // rot=0/180: Zeilen stapeln in raw -y (cyStep=-LH)
+            // rot=90/270: Zeilen stapeln in raw +x (cxStep=+LH), cy bleibt fix
+            let cx, cy, cxStep, cyStep;
+            if (rot === 90 || rot === 270) {
+              // Text fließt in raw +y / -y → visuell rechts-nach-links → String umkehren
+              // Jede Zeile startet bei cy=PAD (ergibt canvas_x = H-PAD = rechte Kante)
+              cx = W + PAD + FS; cy = PAD; cxStep = LH; cyStep = 0;
+            } else if (rot === 180) {
+              // Text fließt in raw -x → canvas rechtswärts ✓
+              cx = W + MARGIN - PAD; cy = H - PAD; cxStep = 0; cyStep = -LH;
+            } else {
+              cx = W + PAD; cy = H - PAD - FS; cxStep = 0; cyStep = -LH;
+            }
             list.sort((a, b) => a.y - b.y || a.x - b.x);
             for (const c of list) {
               const n = numMap.get(c);
-              // Pin: visuelle Position → PDF
+              // Pin: visuelle Position → PDF-Koordinaten
               const { x: px, y: py } = visToPdf(c.x * vW, c.y * vH, ri);
               page.drawCircle({ x: px, y: py, size: 8, color: RED });
               page.drawText(String(n), { x: px - (n > 9 ? 4.6 : 2.4), y: py - 3, size: 8, font, color: rgb(1, 1, 1) });
-              // Kommentartext im Margin – gegenrotiert damit waagrecht lesbar
+              // Kommentartext im Margin-Streifen
               const lines = wrapText(`${n}. ${c.text || ''}`, font, FS, MARGIN - 2 * PAD);
               for (const ln of lines) {
-                page.drawText(ln, { x: cx, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1), rotate: txtRot });
-                cy += cyStep;
+                const txt = flipText ? ln.split('').reverse().join('') : ln;
+                page.drawText(txt, { x: cx, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1), rotate: txtRot });
+                cx += cxStep; cy += cyStep;
               }
-              cy += cyStep < 0 ? -6 : 6;
+              // Lücke zwischen Kommentaren
+              if (cxStep !== 0) cx += 6; else cy -= 6;
             }
           }
         }

@@ -3356,49 +3356,47 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
           const numMap = new Map(ord.map((c, i) => [c, i + 1]));
           const byPage = new Map();
           for (const c of comments) { (byPage.get(c.page) || byPage.set(c.page, []).get(c.page)).push(c); }
-          const MARGIN = 190, PAD = 12, FS = 9, LH = 11.5, RED = rgb(0.886, 0, 0.102);
+          const MARGIN = 200, PAD = 12, FS = 12, LH = 16, RED = rgb(0.886, 0, 0.102);
           for (const [pg, list] of byPage) {
             const page = pages[pg - 1]; if (!page) continue;
             const ri = getPageRotInfo(page);
             const { W, H, rot, vW, vH } = ri;
-            // Margin immer rechts im raw-PDF-Raum
-            page.setWidth(W + MARGIN);
-            page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
-            page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
-            // degrees(rot) = korrekte Gegenrotation: rot=0→0°, rot=90→90°CCW, rot=180→180°, rot=270→270°CCW
-            // Für rot=90/270 fließt der Text auf dem Canvas von rechts nach links;
-            // String umkehren damit er von links nach rechts LESBAR erscheint.
-            const txtRot = degrees(rot);
-            const flipText = rot === 90 || rot === 270;
-            // Startposition und Zeilenrichtung:
-            // rot=0/180: Zeilen stapeln in raw -y (cyStep=-LH)
-            // rot=90/270: Zeilen stapeln in raw +x (cxStep=+LH), cy bleibt fix
+            const isSwapped = rot === 90 || rot === 270;
+            // Streifen immer am visuellen rechten Rand
+            // rot=0/180: raw rechts erweitern (setWidth)
+            // rot=90/270: MediaBox nach unten erweitern (raw -y = visuell rechts)
+            const txtRot = degrees(rot); // Gegenrotation damit Text waagrecht erscheint
             let cx, cy, cxStep, cyStep;
-            if (rot === 90 || rot === 270) {
-              // Text fließt in raw +y / -y → visuell rechts-nach-links → String umkehren
-              // Jede Zeile startet bei cy=PAD (ergibt canvas_x = H-PAD = rechte Kante)
-              cx = W + PAD + FS; cy = PAD; cxStep = LH; cyStep = 0;
+            if (isSwapped) {
+              // Visuell rechts = raw -y → MediaBox von y=0 auf y=-MARGIN erweitern
+              const mb = page.node.get(PDFLib.PDFName.of('MediaBox'));
+              mb.set(1, PDFLib.PDFNumber.of(-MARGIN)); // y0 = -MARGIN
+              page.drawRectangle({ x: 0, y: -MARGIN, width: W, height: MARGIN, color: rgb(0.97, 0.97, 0.95) });
+              page.drawLine({ start: { x: 0, y: 0 }, end: { x: W, y: 0 }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+              // Text im Streifen: cy in [-MARGIN, 0], cx stapelt in +x
+              cx = PAD + FS; cy = -PAD - FS; cxStep = LH; cyStep = 0;
             } else if (rot === 180) {
-              // Text fließt in raw -x → canvas rechtswärts ✓
+              page.setWidth(W + MARGIN);
+              page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
+              page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
               cx = W + MARGIN - PAD; cy = H - PAD; cxStep = 0; cyStep = -LH;
             } else {
+              page.setWidth(W + MARGIN);
+              page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
+              page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
               cx = W + PAD; cy = H - PAD - FS; cxStep = 0; cyStep = -LH;
             }
             list.sort((a, b) => a.y - b.y || a.x - b.x);
             for (const c of list) {
               const n = numMap.get(c);
-              // Pin: visuelle Position → PDF-Koordinaten
               const { x: px, y: py } = visToPdf(c.x * vW, c.y * vH, ri);
               page.drawCircle({ x: px, y: py, size: 8, color: RED });
               page.drawText(String(n), { x: px - (n > 9 ? 4.6 : 2.4), y: py - 3, size: 8, font, color: rgb(1, 1, 1) });
-              // Kommentartext im Margin-Streifen
               const lines = wrapText(`${n}. ${c.text || ''}`, font, FS, MARGIN - 2 * PAD);
               for (const ln of lines) {
-                const txt = flipText ? ln.split('').reverse().join('') : ln;
-                page.drawText(txt, { x: cx, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1), rotate: txtRot });
+                page.drawText(ln, { x: cx, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1), rotate: txtRot });
                 cx += cxStep; cy += cyStep;
               }
-              // Lücke zwischen Kommentaren
               if (cxStep !== 0) cx += 6; else cy -= 6;
             }
           }

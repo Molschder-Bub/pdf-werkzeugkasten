@@ -3320,15 +3320,31 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
 
       // --- Speichern ---
       function wrapText(text, font, size, maxW) {
+        // Bricht ein einzelnes Wort zeichenweise wenn es nicht in maxW passt
+        function breakWord(word) {
+          const parts = [];
+          let chunk = '';
+          for (const ch of word) {
+            const t = chunk + ch;
+            if (font.widthOfTextAtSize(t, size) <= maxW) chunk = t;
+            else { if (chunk) parts.push(chunk); chunk = ch; }
+          }
+          if (chunk) parts.push(chunk);
+          return parts.length ? parts : [word];
+        }
         const out = [];
         for (const para of String(text).split('\n')) {
           const words = para.split(/\s+/).filter(Boolean);
           if (!words.length) { out.push(''); continue; }
           let cur = '';
           for (const w of words) {
-            const t = cur ? cur + ' ' + w : w;
-            if (font.widthOfTextAtSize(t, size) <= maxW) cur = t;
-            else { if (cur) out.push(cur); cur = w; }
+            // Wort selbst zu breit → erst aufteilen
+            const subWords = font.widthOfTextAtSize(w, size) > maxW ? breakWord(w) : [w];
+            for (const sw of subWords) {
+              const t = cur ? cur + ' ' + sw : sw;
+              if (font.widthOfTextAtSize(t, size) <= maxW) cur = t;
+              else { if (cur) out.push(cur); cur = sw; }
+            }
           }
           if (cur) out.push(cur);
         }

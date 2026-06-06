@@ -42,6 +42,9 @@ Der PDF Werkzeugkasten ist eine einzelne HTML-Datei ohne Build-System oder Abhä
    ```bash
    git clone https://github.com/Molschder-Bub/pdf-werkzeugkasten.git
    ```
+   > 💡 Hinweis: Dies ist die Repository-Adresse zum Herunterladen des Codes.
+   > Die fertige Website ist direkt unter **https://molschder-bub.github.io/pdf-werkzeugkasten/** erreichbar – kein Download nötig.
+
 2. Die Datei `index.html` direkt im Browser öffnen (Doppelklick oder Drag & Drop in den Browser)
 
 > ⚠️ Manche Browser blockieren lokale Dateizugriffe. Falls Funktionen nicht laden, Option 2 verwenden.

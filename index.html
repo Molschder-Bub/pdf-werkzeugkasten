@@ -3360,23 +3360,12 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
           for (const [pg, list] of byPage) {
             const page = pages[pg - 1]; if (!page) continue;
             const ri = getPageRotInfo(page);
-            const { W, H, rot, vW, vH } = ri;
-            // Margin immer am visuellen rechten Rand anhängen
-            // Für rot=0/180: Breite erweitern; für rot=90/270: Höhe erweitern
-            const isSwapped = rot === 90 || rot === 270;
-            if (isSwapped) {
-              page.setHeight(H + MARGIN);
-            } else {
-              page.setWidth(W + MARGIN);
-            }
-            // Hintergrund-Streifen für Kommentare
-            if (!isSwapped) {
-              page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
-              page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
-            } else {
-              page.drawRectangle({ x: 0, y: -MARGIN, width: W, height: MARGIN, color: rgb(0.97, 0.97, 0.95) });
-            }
-            let cy = isSwapped ? -PAD - FS : H - PAD - FS;
+            const { W, H, vW, vH } = ri;
+            // Margin immer rechts im raw-PDF-Raum anhängen (zuverlässig für alle Rotationen)
+            page.setWidth(W + MARGIN);
+            page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
+            page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+            let cy = H - PAD - FS;
             list.sort((a, b) => a.y - b.y || a.x - b.x);
             for (const c of list) {
               const n = numMap.get(c);
@@ -3384,13 +3373,9 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
               const { x: px, y: py } = visToPdf(c.x * vW, c.y * vH, ri);
               page.drawCircle({ x: px, y: py, size: 8, color: RED });
               page.drawText(String(n), { x: px - (n > 9 ? 4.6 : 2.4), y: py - 3, size: 8, font, color: rgb(1, 1, 1) });
-              // Text im Margin
+              // Kommentartext im Margin
               const lines = wrapText(`${n}. ${c.text || ''}`, font, FS, MARGIN - 2 * PAD);
-              if (!isSwapped) {
-                for (const ln of lines) { page.drawText(ln, { x: W + PAD, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1) }); cy -= LH; }
-              } else {
-                for (const ln of lines) { page.drawText(ln, { x: PAD, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1) }); cy -= LH; }
-              }
+              for (const ln of lines) { page.drawText(ln, { x: W + PAD, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1) }); cy -= LH; }
               cy -= 6;
             }
           }

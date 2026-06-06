@@ -1659,6 +1659,19 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
       }
     }
 
+    // Visuelles Rechteck (Fraktionen 0..1) → PDF drawRectangle-Parameter
+    function visualRectToPdf(page, vxF, vyF, vwF, vhF) {
+      const ri = getPageRotInfo(page);
+      const { W, H, rot, vW, vH } = ri;
+      const vx = vxF * vW, vy = vyF * vH, vw = vwF * vW, vh = vhF * vH;
+      switch (rot) {
+        case 90:  return { x: vy,          y: vx,            width: vh, height: vw };
+        case 180: return { x: W - vx - vw, y: vy,            width: vw, height: vh };
+        case 270: return { x: H - vy - vh, y: W - vx - vw,  width: vh, height: vw };
+        default:  return { x: vx,          y: H - vy - vh,   width: vw, height: vh };
+      }
+    }
+
     /* ---------- Recent tracking: nach jedem Download eintragen ---------- */
     const _origDownload = download;
     window.download = function(data, name, type) {
@@ -3331,9 +3344,9 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
         // Marker (unter Beibehaltung des Textes, halbtransparent)
         for (const h of highlights) {
           const page = pages[h.page - 1]; if (!page) continue;
-          const { width: W, height: H } = page.getSize();
           const c = COLORS[h.color].rgb;
-          page.drawRectangle({ x: h.x * W, y: H - (h.y + h.h) * H, width: h.w * W, height: h.h * H, color: rgb(c[0], c[1], c[2]), opacity: HL_OPACITY });
+          const r = visualRectToPdf(page, h.x, h.y, h.w, h.h);
+          page.drawRectangle({ ...r, color: rgb(c[0], c[1], c[2]), opacity: HL_OPACITY });
         }
 
         // Kommentare am rechten Rand
@@ -3346,19 +3359,38 @@ window.QPDF_WASM_URL = 'data:application/wasm;base64,AGFzbQEAAAAB+wVaYAF/AX9gAn9
           const MARGIN = 190, PAD = 12, FS = 9, LH = 11.5, RED = rgb(0.886, 0, 0.102);
           for (const [pg, list] of byPage) {
             const page = pages[pg - 1]; if (!page) continue;
-            const { width: W, height: H } = page.getSize();
-            page.setWidth(W + MARGIN);
-            page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
-            page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
-            let cy = H - PAD - FS;
+            const ri = getPageRotInfo(page);
+            const { W, H, rot, vW, vH } = ri;
+            // Margin immer am visuellen rechten Rand anhängen
+            // Für rot=0/180: Breite erweitern; für rot=90/270: Höhe erweitern
+            const isSwapped = rot === 90 || rot === 270;
+            if (isSwapped) {
+              page.setHeight(H + MARGIN);
+            } else {
+              page.setWidth(W + MARGIN);
+            }
+            // Hintergrund-Streifen für Kommentare
+            if (!isSwapped) {
+              page.drawRectangle({ x: W, y: 0, width: MARGIN, height: H, color: rgb(0.97, 0.97, 0.95) });
+              page.drawLine({ start: { x: W, y: 0 }, end: { x: W, y: H }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+            } else {
+              page.drawRectangle({ x: 0, y: -MARGIN, width: W, height: MARGIN, color: rgb(0.97, 0.97, 0.95) });
+            }
+            let cy = isSwapped ? -PAD - FS : H - PAD - FS;
             list.sort((a, b) => a.y - b.y || a.x - b.x);
             for (const c of list) {
               const n = numMap.get(c);
-              const px = c.x * W, py = H - c.y * H;
+              // Pin: visuelle Position → PDF
+              const { x: px, y: py } = visToPdf(c.x * vW, c.y * vH, ri);
               page.drawCircle({ x: px, y: py, size: 8, color: RED });
               page.drawText(String(n), { x: px - (n > 9 ? 4.6 : 2.4), y: py - 3, size: 8, font, color: rgb(1, 1, 1) });
-              const lines = wrapText(`${n}. ${c.text || ''}`, font, FS, MARGIN - 2 * PAD);
-              for (const ln of lines) { page.drawText(ln, { x: W + PAD, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1) }); cy -= LH; }
+              // Text im Margin
+              const lines = wrapText(\`\${n}. \${c.text || ''}\`, font, FS, MARGIN - 2 * PAD);
+              if (!isSwapped) {
+                for (const ln of lines) { page.drawText(ln, { x: W + PAD, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1) }); cy -= LH; }
+              } else {
+                for (const ln of lines) { page.drawText(ln, { x: PAD, y: cy, size: FS, font, color: rgb(0.1, 0.1, 0.1) }); cy -= LH; }
+              }
               cy -= 6;
             }
           }

@@ -32,6 +32,49 @@ Ein vollständiger, browserbasierter PDF-Werkzeugkasten – keine Installation, 
 
 ---
 
+## Installation & lokale Nutzung
+
+Der PDF Werkzeugkasten ist eine einzelne HTML-Datei ohne Build-System oder Abhängigkeiten. Es gibt zwei Möglichkeiten, ihn zu nutzen:
+
+### Option 1 – Direkt im Browser öffnen
+
+1. Repository herunterladen oder klonen:
+   ```bash
+   git clone https://github.com/Molschder-Bub/pdf-werkzeugkasten.git
+   ```
+2. Die Datei `index.html` direkt im Browser öffnen (Doppelklick oder Drag & Drop in den Browser)
+
+> ⚠️ Manche Browser blockieren lokale Dateizugriffe. Falls Funktionen nicht laden, Option 2 verwenden.
+
+---
+
+### Option 2 – Lokaler Webserver (empfohlen)
+
+**Mit Python (vorinstalliert auf macOS/Linux):**
+```bash
+cd pdf-werkzeugkasten
+python3 -m http.server 8080
+```
+Dann im Browser öffnen: [http://localhost:8080](http://localhost:8080)
+
+**Mit Node.js:**
+```bash
+npx serve .
+```
+
+**Mit VS Code:**
+Die Erweiterung [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) installieren → Rechtsklick auf `index.html` → *Open with Live Server*
+
+---
+
+### Selbst hosten (GitHub Pages)
+
+1. Repository forken
+2. In den Repository-Einstellungen unter **Settings → Pages** den Branch `main` auswählen
+3. Die App ist dann unter `https://<dein-username>.github.io/pdf-werkzeugkasten/` erreichbar
+
+---
+
 ## Technologie
 
 - Reines HTML/CSS/JavaScript – keine Abhängigkeiten, kein Build-System

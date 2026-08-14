@@ -1,0 +1,16 @@
+# Lokale Claude-/Editor-Einstellungen (gehören nicht ins Repo)
+.claude/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Temporär
+*.tmp
+*.log
+
+# Heruntergeladene Bibliotheken für den Offline-Build (werden bei Bedarf neu geladen)
+.build/

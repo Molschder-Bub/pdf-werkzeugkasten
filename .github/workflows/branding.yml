@@ -1,0 +1,19 @@
+name: Branding-Schutz
+
+# Schlaegt fehl, sobald in index.html das sellgrad-Logo (Favicon,
+# Sidebar-Marke, Footer-Lockup) oder die Copyright-Zeile fehlt.
+# Laeuft bei jedem Push und bei jedem Pull Request — auch aus Forks.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  branding:
+    name: sellgrad-Marke pruefen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: index.html pruefen
+        run: python3 .github/check-branding.py

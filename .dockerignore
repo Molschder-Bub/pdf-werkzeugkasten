@@ -1,0 +1,8 @@
+alt/
+.build/
+.claude/
+.git/
+*.png
+pdf.worker.min.js
+README.md
+CLAUDE.md

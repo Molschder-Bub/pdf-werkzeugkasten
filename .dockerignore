@@ -1,7 +1,7 @@
-alt/
 .build/
 .claude/
 .git/
+.github/
 *.png
 pdf.worker.min.js
 README.md

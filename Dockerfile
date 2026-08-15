@@ -4,8 +4,9 @@ FROM python:3.12-alpine
 
 WORKDIR /srv
 COPY index.html /srv/index.html
+COPY serve.py /srv/serve.py
 
 ENV PORT=8080
 EXPOSE 8080
 
-CMD ["sh", "-c", "python3 -m http.server ${PORT} --directory /srv"]
+CMD ["python3", "/srv/serve.py"]
